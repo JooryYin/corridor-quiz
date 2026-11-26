@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Corridor Quiz: Vote</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+/* VOICE  playful, warm, a corridor joke everyone is in on
+   IDEA   the ruled paper polls taped to the office wall
+   PICTURE the question of the week as a big taped card with real tally marks, the archive pinned below
+   COLOUR wall putty, white ruled paper, pen ink, sticky-note yellow + lime, blue biro for "your" pick
+   TYPE   Patrick Hand for handwriting, Atkinson Hyperlegible for everything you read
+   LAYOUT title, the wall of cards, pin up a new question, then the tally-up */
+:root{color-scheme:light dark;
+--wall:light-dark(#e8e3d6,#1b1a17);--paper:light-dark(#fffdf7,#2a2925);--rule:light-dark(#c4d3e6,#3d4552);
+--ink:light-dark(#1f2026,#ece8dd);--soft:light-dark(#5b5b63,#a9a497);--sticky:light-dark(#f8ea55,#e2d040);
+--lime:light-dark(#d8f26a,#bcd84c);--sink:#24220f;--pick:light-dark(#1f4fd6,#93b4ff)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+[hidden]{display:none!important}
+body{margin:0;background:var(--wall);color:var(--ink);font:16px/1.55 'Atkinson Hyperlegible',system-ui,sans-serif;overflow-x:clip}
+.band{padding:clamp(28px,4vw,56px) max(5vw,16px)}
+.wrap{max-width:1240px;margin:0 auto}
+.hand{font-family:'Patrick Hand','Comic Sans MS',cursive;font-weight:400}
+h1{font-size:clamp(38px,6vw,52px);line-height:1.05;margin:0;text-wrap:balance}
+.sub{font-size:17px;max-width:62ch;margin:10px 0 0;color:var(--soft)}
+.src{font-size:14px;color:var(--soft);margin:6px 0 0}
+.who{display:inline-flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px;margin:14px 0 0;padding:8px 14px 9px;background:var(--paper);border-radius:3px;box-shadow:0 8px 14px -10px rgba(0,0,0,.4);font-size:15px;transform:rotate(-.4deg)}
+.who .hand{font-size:22px;line-height:1.1}
+.who a{color:var(--ink);white-space:nowrap;text-underline-offset:3px}
+.who small{color:var(--soft);font-size:14px}
+#status{display:inline-block;margin-top:14px;background:var(--sticky);color:var(--sink);padding:10px 14px;border-radius:4px;box-shadow:0 6px 10px -6px rgba(0,0,0,.4)}
+#status[hidden]{display:none}
+#wall{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));gap:34px 28px;align-items:start;padding-top:8px}
+.card{position:relative;background-color:var(--paper);background-image:repeating-linear-gradient(90deg,transparent 0 31px,color-mix(in srgb,var(--rule) 55%,transparent) 31px 32px);padding:30px 22px 16px;border-radius:3px;box-shadow:0 1px 0 rgba(0,0,0,.05),0 14px 26px -16px rgba(0,0,0,.45);transform:rotate(var(--tilt,0deg));animation:pin .5s ease-out both}
+.card::before{content:'';position:absolute;top:-11px;left:50%;width:86px;height:22px;transform:translateX(-50%) rotate(-3deg);background:light-dark(rgba(255,255,255,.6),rgba(255,255,255,.14));box-shadow:0 1px 3px rgba(0,0,0,.12)}
+@keyframes pin{from{opacity:0;transform:translateY(-10px) rotate(var(--tilt,0deg))}}
+@media(prefers-reduced-motion:reduce){.card{animation:none}}
+.card h2{font-size:28px;line-height:1.1;margin:0 0 6px;padding-bottom:8px;border-bottom:2px solid var(--ink);text-wrap:balance}
+.opt{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"lab n" "tl tl";gap:0 12px;border-bottom:1px dashed var(--rule);padding:10px 6px 8px}
+.lab{grid-area:lab;justify-self:start;font-size:23px;line-height:1.15;padding:1px 9px;margin-left:-9px;border:2px solid transparent;border-radius:999px}
+.n{grid-area:n;align-self:center;font-weight:700;font-size:17px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.n small{font-weight:400;font-size:14px;color:var(--soft);margin-left:6px}
+.tl{grid-area:tl;display:flex;align-items:center;gap:6px;min-height:30px;overflow:hidden}
+.tal path{fill:none;stroke:var(--ink);stroke-width:2.2;stroke-linecap:round}
+.lead .lab{border-color:var(--pick)}
+.none{font-size:14px;color:var(--soft)}.more{font-size:14px;font-weight:700}
+details summary{list-style:none;cursor:pointer;color:var(--soft);font-size:15px;min-height:44px;display:flex;align-items:center}
+details summary::-webkit-details-marker{display:none}
+.row{display:flex;gap:8px;margin-top:8px}
+input{flex:1;width:100%;font:16px/1.3 inherit;padding:10px 12px;min-height:44px;border:1.5px solid var(--rule);border-radius:8px;background:var(--paper);color:var(--ink)}
+button{font:inherit}
+.btn,.row button{flex:none;background:var(--ink);color:var(--paper);border:0;border-radius:8px;padding:0 16px;min-height:44px;font-weight:700;cursor:pointer}
+.btn.ghost{background:none;color:var(--ink);border:1.5px solid var(--ink)}
+button:disabled{opacity:.5;cursor:default}
+:focus-visible{outline:3px solid var(--pick);outline-offset:2px}
+.notes{display:flex;flex-wrap:wrap;gap:12px;margin:14px 0 4px}
+.sticky{position:relative;background:var(--sticky);color:var(--sink);padding:10px 22px 14px 12px;width:min(100%,160px);min-height:96px;font-size:19px;line-height:1.15;transform:rotate(var(--r,0deg));box-shadow:0 8px 12px -8px rgba(0,0,0,.45);overflow-wrap:anywhere}
+.sticky.lime{background:var(--lime)}
+.x{position:absolute;top:0;right:0;width:32px;height:32px;background:none;border:0;color:inherit;font-size:20px;cursor:pointer}
+.foot{font-size:14px;color:var(--soft);margin:10px 0 0}
+.link{background:none;border:0;padding:0;color:inherit;text-decoration:underline;cursor:pointer}
+.empty{font-size:26px;grid-column:1/-1}
+.newcard{max-width:620px;--tilt:-.4deg}
+.newcard label{display:block;font-size:15px;color:var(--soft);margin:12px 0 4px}
+#nopts{display:grid;gap:8px;margin-top:8px}
+.acts{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+#npmsg{font-size:15px;color:var(--soft);margin:10px 0 0;min-height:1.5em}
+.big{padding:36px clamp(20px,4vw,40px) 20px}
+.big h2{font-size:clamp(32px,4.6vw,44px)}
+.big .lab{font-size:28px}
+.badge{position:absolute;top:-16px;left:18px;z-index:1;background:var(--sticky);color:var(--sink);font-family:'Patrick Hand',cursive;font-size:21px;line-height:1.2;padding:3px 14px;transform:rotate(-3deg);box-shadow:0 6px 10px -6px rgba(0,0,0,.45)}
+#week{max-width:840px;margin:0 auto}
+.sec{font-size:30px;line-height:1.1;margin:44px 0 18px}
+.opt.ed{grid-template-columns:minmax(0,1fr) auto auto;grid-template-areas:"lab n ctl" "tl tl tl";cursor:default}
+.ctl{grid-area:ctl;display:flex;gap:6px;align-items:center}
+.step{width:44px;height:44px;border-radius:50%;border:1.5px solid var(--ink);background:var(--paper);color:var(--ink);font-size:22px;font-weight:700;line-height:1;cursor:pointer}
+.step.rm{border-color:transparent;color:var(--soft);font-size:18px;width:34px}
+.edbar{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin-top:16px}
+.edbar span{font-size:15px;color:var(--soft)}
+.tools{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:10px;font-size:14px;color:var(--soft)}
+.check{display:flex;gap:8px;align-items:center;font-size:15px;margin-top:12px;color:var(--ink)}
+.check input{width:20px;height:20px;min-height:0;flex:none}
+.stats{background:var(--ink);color:var(--paper)}
+.stats h2{font-size:clamp(32px,4vw,44px);line-height:1.05;margin:0 0 4px}
+.stats .sub{color:color-mix(in srgb,var(--paper) 70%,transparent)}
+#tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:24px;margin-top:22px}
+.tile b{display:block;font-family:'Patrick Hand',cursive;font-weight:400;font-size:clamp(40px,5vw,52px);line-height:1}
+.tile span{display:block;font-size:15px;margin-top:6px;color:color-mix(in srgb,var(--paper) 78%,transparent)}
+@media(max-width:600px){.card{--tilt:0deg!important}.card h2{font-size:26px}}
+
+.opt.vote{cursor:pointer;width:100%;text-align:left;background:none;border:0;border-bottom:1px dashed var(--rule);color:inherit;font:inherit;border-radius:6px;min-height:52px}
+.opt.vote:hover{background:color-mix(in srgb,var(--sticky) 28%,transparent)}
+.opt.vote:disabled{cursor:default}
+.mine .lab{border-color:var(--pick)}
+.mine .tal path{stroke:var(--pick)}
+.hint{font-size:15px;color:var(--soft);margin:12px 0 0}
+.sugg{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:24px;align-items:start;margin-top:22px}
+.sugg .sticky{width:auto;min-height:0;padding:14px 16px 16px;font-size:16px;line-height:1.4}
+.sugg .sticky b{display:block;font-family:'Patrick Hand',cursive;font-weight:400;font-size:23px;line-height:1.15;margin-bottom:6px}
+.sugg .sticky ul{margin:0;padding-left:18px}
+.sugg .num{display:block;font-size:13px;opacity:.7;margin-top:8px}
+.kpanel{background:var(--paper);border-radius:4px;padding:22px clamp(16px,3vw,28px);margin-bottom:44px;box-shadow:0 14px 26px -16px rgba(0,0,0,.45);border-top:6px solid var(--sticky)}
+.kpanel h2{font-size:30px;line-height:1.1;margin:0}
+.khead{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between;margin-bottom:6px}
+.krow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 16px;align-items:center;padding:14px 0;border-top:1px dashed var(--rule)}
+.krow b{font-family:'Patrick Hand',cursive;font-weight:400;font-size:22px;line-height:1.15;display:block}
+.krow small{display:block;font-size:14px;color:var(--soft);margin-top:2px}
+@media(max-width:600px){.krow{grid-template-columns:minmax(0,1fr)}.krow .btn{justify-self:start}}
+.thanks{font-family:'Patrick Hand',cursive;font-size:22px;color:var(--pick);margin:12px 0 0}
+</style>
+</head>
+<body>
+<header class="band" style="padding-bottom:12px">
+  <div class="wrap">
+    <h1 class="hand">The Corridor Quiz</h1>
+    <p class="sub">Tap your answer to the question of the week. No sign-in needed: one vote per phone, and you can change it any time.</p>
+    <p class="who"><span class="hand">Quiz keepers: Joory &amp; Rikke</span><span><a href="mailto:joory@agro.au.dk">joory@agro.au.dk</a> <small>(Jingru Yin &amp; Rikke Borchmann)</small></span></p>
+    <div class="edbar" id="kbar" hidden><span class="badge" style="position:static;transform:none">Keeper mode</span><span>Use + and − for whiteboard tallies, and the links under each question.</span><button class="btn ghost" id="klogout">Log out</button></div>
+    <p id="status" role="status" hidden></p>
+  </div>
+</header>
+<main class="band" style="padding-top:28px"><div class="wrap">
+  <section class="kpanel" id="kpanel" hidden aria-label="Choose the question of the week"></section>
+  <div id="week"><p class="empty hand">Loading the question…</p></div>
+  <h2 class="sec hand" id="sec" hidden>Earlier questions</h2>
+  <div id="wall"></div>
+</div></main>
+<section class="band" style="padding-top:0">
+  <div class="wrap">
+    <h2 class="sec hand" style="margin-top:8px">Suggestion box</h2>
+    <p class="sub" style="margin-top:0">Got a good one? Suggest a question. Joory &amp; Rikke pick the question of the week from here.</p>
+    <form id="np" class="card newcard" autocomplete="off" style="margin-top:22px">
+      <h2 class="hand" id="fh">Suggest a question</h2>
+      <label for="nq">Your question</label>
+      <input id="nq" maxlength="140" required placeholder="Would you rather work from a cabin or a café?">
+      <label>Answers (2 to 6)</label>
+      <div id="nopts"></div>
+      <label class="check" id="wk" hidden><input type="checkbox" id="wkc" checked> Make it the question of the week</label>
+      <div class="acts"><button type="button" class="btn ghost" id="addo">+ Another answer</button><button class="btn" id="pin">Drop it in the box</button></div>
+      <p id="npmsg" role="status"></p>
+    </form>
+    <div class="sugg" id="sugg"></div>
+  </div>
+</section>
+<section class="band stats">
+  <div class="wrap">
+    <h2 class="hand">The full statistical analysis</h2>
+    <p class="sub">Whiteboard tallies plus online votes, recounted live.</p>
+    <div id="tiles"></div>
+    <p style="margin:36px 0 0;font-size:14px"><button class="link" id="klogin" style="color:inherit;opacity:.75;min-height:44px">Keeper login</button></p>
+    <form id="kform" class="row" hidden style="max-width:420px"><input type="password" id="kpw" required placeholder="Keeper password" aria-label="Keeper password" autocomplete="current-password"><button>Log in</button></form>
+    <p id="kmsg" role="status" style="font-size:14px;margin:8px 0 0"></p>
+  </div>
+</section>
+<script>
+{
+// ── Your two Supabase values (Project Settings → API) ──
+const SUPABASE_URL = 'https://hdbthtqozimnprtrsfup.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_ACedA8Vd5WN6o1ubVMxNOw_072SadaB';
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const week = $('#week'), wall = $('#wall'), status = $('#status');
+const say = t => { status.textContent = t; status.hidden = !t; };
+let qs = [], online = {}, mine = {}, busy = false, pw = null;
+const localPaper = {}, timers = {};
+
+let dev = null;
+try{ dev = localStorage.getItem('cq-device'); }catch(e){}
+if(!dev){ dev = (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36)); try{ localStorage.setItem('cq-device', dev); }catch(e){} }
+
+function tally(n){
+  if(!n) return '<span class="none">no tallies yet</span>';
+  const k = Math.min(n, 45), W = Math.ceil(k / 5) * 34;
+  let p = '';
+  for(let i = 0; i < k; i++){
+    const x0 = Math.floor(i / 5) * 34 + 5, j = i % 5, w = ((i * 37) % 7 - 3) * 0.35;
+    p += j < 4 ? `M${(x0 + j * 6 + w).toFixed(1)} ${(4 + Math.abs(w)).toFixed(1)}L${(x0 + j * 6 - w * .6).toFixed(1)} 25` : `M${x0 - 4} 20L${x0 + 23} 8`;
+  }
+  return `<svg class="tal" width="${W}" height="29" viewBox="0 0 ${W} 29" aria-hidden="true"><path d="${p}"/></svg>` + (n > k ? `<span class="more">+${n - k}</span>` : '');
+}
+const paperOf = q => (q.options || []).map((_, i) => localPaper[q.id] ? localPaper[q.id][i] : (+(q.paper_counts || [])[i] || 0));
+const counts = q => paperOf(q).map((p, i) => p + ((online[q.id] || {})[i] || 0));
+
+function tools(q, cur){
+  if(!pw) return '';
+  return `<div class="tools">${cur ? '' : `<button class="link" data-act="feature" data-q="${esc(q.id)}">Make question of the week</button>`}<button class="link" data-act="del" data-q="${esc(q.id)}">Take down</button></div>`;
+}
+function card(q, i, big){
+  const c = counts(q), tot = c.reduce((a, b) => a + b, 0), voted = Object.hasOwn(mine, q.id);
+  const show = !big || voted || pw, top = Math.max(0, ...c), canVote = big && !pw;
+  const rows = (q.options || []).map((label, k) => {
+    const ctl = pw ? `<span class="ctl"><button class="step" data-act="step" data-d="-1" data-q="${esc(q.id)}" data-c="${k}" aria-label="Remove a whiteboard tally from ${esc(label)}">−</button><button class="step" data-act="step" data-d="1" data-q="${esc(q.id)}" data-c="${k}" aria-label="Add a whiteboard tally to ${esc(label)}">+</button></span>` : '';
+    const inner = `<span class="lab hand">${esc(label)}</span>` + (show ? `<span class="n">${c[k]}<small>${tot ? Math.round(c[k] / tot * 100) : 0}%</small></span>${ctl}<span class="tl">${tally(c[k])}</span>` : '');
+    const cls = `opt${pw ? ' ed' : ''}${mine[q.id] === k && !pw ? ' mine' : ''}${!big && top && c[k] === top ? ' lead' : ''}`;
+    return canVote ? `<button class="${cls} vote" data-q="${esc(q.id)}" data-c="${k}" aria-pressed="${mine[q.id] === k}"${busy ? ' disabled' : ''}>${inner}</button>` : `<div class="${cls}">${inner}</div>`;
+  }).join('');
+  return `<article class="card${big ? ' big' : ''}" style="--tilt:${big ? 0 : (i % 3 - 1) * .5}deg">
+    ${big ? '<span class="badge">Question of the week</span>' : ''}
+    <h2 class="hand">${esc(q.question)}</h2><div class="opts">${rows}</div>
+    ${canVote ? (voted ? '<p class="thanks">Thanks for voting! Tap another answer to change your mind.</p>' : '<p class="hint">Tap an answer to vote. Results appear after you vote.</p>') : ''}
+    ${pw ? '<p class="hint">+ and − change the whiteboard tallies. Online votes are added on top.</p>' : ''}
+    ${show ? `<p class="foot">${tot} ${tot === 1 ? 'tally' : 'tallies'}</p>` : ''}
+    ${tools(q, big)}
+  </article>`;
+}
+function render(){
+  const asked = qs.filter(q => !q.suggested || q.is_current);
+  const cur = asked.filter(q => q.is_current).pop() || asked[asked.length - 1];
+  const rest = asked.filter(q => q !== cur).reverse();
+  const sugg = qs.filter(q => q.suggested && !q.is_current).reverse();
+  const kp = $('#kpanel'); kp.hidden = !pw;
+  if(pw) kp.innerHTML = `<div class="khead"><h2 class="hand">Choose the question of the week</h2>${sugg.length > 1 ? '<button class="btn ghost" data-act="random">Surprise me</button>' : ''}</div>
+    ${sugg.length ? sugg.map(q => `<div class="krow"><div><b>${esc(q.question)}</b><small>${(q.options || []).map(esc).join(' · ')} · #${esc(q.id)}</small></div><button class="btn" data-act="feature" data-q="${esc(q.id)}">Use this one</button></div>`).join('')
+      : '<p class="hint">The suggestion box is empty. Post your own question with the form further down.</p>'}`;
+  week.innerHTML = cur ? card(cur, 0, true) : '<p class="empty hand">No question this week yet.</p>';
+  $('#sec').hidden = !rest.length;
+  wall.innerHTML = rest.map((q, i) => card(q, i, false)).join('');
+  $('#sugg').innerHTML = sugg.map((q, i) => `<div class="sticky${i % 2 ? ' lime' : ''}" style="--r:${((i * 53) % 5 - 2) * .8}deg"><b>${esc(q.question)}</b><ul>${(q.options || []).map(o => `<li>${esc(o)}</li>`).join('')}</ul><span class="num">Suggestion #${esc(q.id)}</span>${tools(q, false)}</div>`).join('');
+  let all = 0, best = null, close = null;
+  for(const q of asked){
+    const c = counts(q), t = c.reduce((a, b) => a + b, 0);
+    all += t;
+    const order = c.map((v, k) => [v, k]).sort((a, b) => b[0] - a[0]);
+    if(t >= 3 && order.length > 1){
+      const share = order[0][0] / t, gap = order[0][0] - order[1][0];
+      if(!best || share > best.s) best = { s: share, l: q.options[order[0][1]] };
+      if(!close || gap < close.g) close = { g: gap, a: q.options[order[0][1]], b: q.options[order[1][1]] };
+    }
+  }
+  const tiles = [[all, 'tallies so far'], [asked.length, asked.length === 1 ? 'question asked' : 'questions asked'],
+    [best ? Math.round(best.s * 100) + '%' : '–', best ? `for “${best.l}”, the clearest verdict` : 'clearest verdict (needs 3 tallies)'],
+    [close ? (close.g === 0 ? 'Tie' : '+' + close.g) : '–', close ? `“${close.a}” over “${close.b}”, the closest race` : 'closest race (needs 3 tallies)']];
+  $('#tiles').innerHTML = tiles.map(([b, t]) => `<div class="tile"><b>${esc(b)}</b><span>${esc(t)}</span></div>`).join('');
+}
+function keeperUI(){
+  $('#kbar').hidden = !pw; $('#klogin').hidden = !!pw; $('#kform').hidden = true;
+  $('#fh').textContent = pw ? 'Pin up a new question' : 'Suggest a question';
+  $('#pin').textContent = pw ? 'Pin it up' : 'Drop it in the box';
+  $('#wk').hidden = !pw;
+  render();
+}
+
+if(!/^https:\/\//.test(SUPABASE_URL) || !window.supabase){
+  week.innerHTML = '';
+  say(window.supabase ? 'Almost there: paste your Supabase Project URL and key into index.html (see the setup steps).' : 'Couldn’t load the voting library. Check your internet connection.');
+} else {
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false } });
+  const kerr = error => say(/wrong password/.test(error.message || '') ? 'The keeper password was refused. Please log in again.' : 'That didn’t save. Please try again.');
+  async function load(){
+    const [q, r, m] = await Promise.all([
+      sb.from('questions').select('id,question,options,paper_counts,is_current,suggested,created_at').order('created_at'),
+      sb.rpc('results'), sb.rpc('my_votes', { d: dev })]);
+    if(q.error || r.error || m.error){ say('Couldn’t reach the vote box. Try again in a moment.'); return; }
+    if(status.textContent.startsWith('Couldn’t reach')) say('');
+    qs = q.data || []; online = {}; mine = {};
+    for(const x of r.data || []) (online[x.question_id] ||= {})[x.choice] = Number(x.total);
+    for(const x of m.data || []) mine[x.question_id] = x.choice;
+    if(!busy) render();
+  }
+  week.addEventListener('click', async e => {
+    const b = e.target.closest('button.vote'); if(!b || busy) return;
+    const qid = Number(b.dataset.q), c = Number(b.dataset.c);
+    if(mine[qid] === c) return;
+    const o = (online[qid] ||= {});
+    if(Object.hasOwn(mine, qid)) o[mine[qid]] = Math.max(0, (o[mine[qid]] || 0) - 1);
+    o[c] = (o[c] || 0) + 1; mine[qid] = c;
+    busy = true; render();
+    const { error } = await sb.rpc('cast_vote', { q: qid, d: dev, c });
+    busy = false;
+    if(error) say('Your vote didn’t save. Please try again.');
+    await load();
+  });
+  document.addEventListener('click', async e => {
+    const b = e.target.closest('button[data-act]'); if(!b || !pw) return;
+    if(b.dataset.act === 'random'){
+      const pool = qs.filter(x => x.suggested && !x.is_current);
+      if(!pool.length) return;
+      b.dataset.q = String(pool[Math.floor(Math.random() * pool.length)].id); b.dataset.act = 'feature';
+    }
+    const qid = Number(b.dataset.q), q = qs.find(x => x.id === qid); if(!q) return;
+    const act = b.dataset.act;
+    if(act === 'step'){
+      const p = paperOf(q), k = Number(b.dataset.c);
+      p[k] = Math.max(0, p[k] + Number(b.dataset.d)); localPaper[qid] = p; render();
+      clearTimeout(timers[qid]);
+      timers[qid] = setTimeout(async () => {
+        const sent = localPaper[qid];
+        const { error } = await sb.rpc('keeper_set_paper', { pw, qid, counts: sent });
+        if(error){ delete localPaper[qid]; render(); kerr(error); return; }
+        await load();
+        if(localPaper[qid] === sent) delete localPaper[qid];
+        render();
+      }, 700);
+      return;
+    }
+    if(act === 'del' && !b.dataset.sure){ b.dataset.sure = '1'; b.textContent = 'Tap again to take it down'; return; }
+    b.disabled = true;
+    const { error } = act === 'feature' ? await sb.rpc('keeper_feature', { pw, qid }) : await sb.rpc('keeper_delete', { pw, qid });
+    if(error){ b.disabled = false; kerr(error); return; }
+    if(act === 'feature') window.scrollTo({ top: 0, behavior: 'smooth' });
+    await load();
+  });
+
+  $('#klogin').addEventListener('click', () => { $('#kform').hidden = false; $('#klogin').hidden = true; $('#kpw').focus(); });
+  $('#kform').addEventListener('submit', async e => {
+    e.preventDefault();
+    const val = $('#kpw').value, msg = $('#kmsg');
+    msg.textContent = 'Checking…';
+    const { data, error } = await sb.rpc('keeper_ok', { pw: val });
+    if(error || data !== true){ msg.textContent = 'That password didn’t work.'; return; }
+    pw = val; $('#kpw').value = ''; msg.textContent = '';
+    try{ sessionStorage.setItem('cq-keeper', pw); }catch(e){}
+    keeperUI(); window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+  $('#klogout').addEventListener('click', () => { pw = null; try{ sessionStorage.removeItem('cq-keeper'); }catch(e){} keeperUI(); });
+
+  const nopts = $('#nopts');
+  const addOpt = () => {
+    if(nopts.children.length >= 6) return;
+    const i = document.createElement('input');
+    i.maxLength = 60; i.placeholder = 'Answer ' + (nopts.children.length + 1); i.setAttribute('aria-label', i.placeholder);
+    nopts.append(i); $('#addo').disabled = nopts.children.length >= 6;
+  };
+  addOpt(); addOpt();
+  $('#addo').addEventListener('click', () => { addOpt(); nopts.lastElementChild.focus(); });
+  $('#np').addEventListener('submit', async e => {
+    e.preventDefault();
+    const q = $('#nq').value.trim(), msg = $('#npmsg');
+    const opts = [...new Set([...nopts.querySelectorAll('input')].map(i => i.value.trim()).filter(Boolean))];
+    if(q.length < 5 || opts.length < 2){ msg.textContent = 'Add a question and at least two different answers.'; return; }
+    $('#pin').disabled = true; msg.textContent = 'Sending…';
+    const { error } = pw ? await sb.rpc('keeper_add', { pw, q, opts, make_current: $('#wkc').checked })
+                         : await sb.rpc('suggest_question', { q, opts, d: dev });
+    $('#pin').disabled = false;
+    if(error){
+      msg.textContent = /limit/.test(error.message || '') ? 'That’s 3 suggestions from this phone today. Try again tomorrow!'
+        : /wrong password/.test(error.message || '') ? 'The keeper password was refused. Please log in again.' : 'That didn’t send. Please try again.';
+      return;
+    }
+    $('#nq').value = ''; nopts.innerHTML = ''; addOpt(); addOpt();
+    msg.textContent = pw ? 'Pinned! It’s on the wall above.' : 'Thanks! Your question is in the suggestion box.';
+    await load();
+    if(pw && $('#wkc').checked) window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
+  (async () => {
+    let saved = null;
+    try{ saved = sessionStorage.getItem('cq-keeper'); }catch(e){}
+    if(saved){ const { data } = await sb.rpc('keeper_ok', { pw: saved }); if(data === true) pw = saved; }
+    keeperUI();
+    load();
+  })();
+  setInterval(() => { if(document.visibilityState === 'visible' && !busy) load(); }, 15000);
+}
+}
+</script>
+</body>
+</html>
